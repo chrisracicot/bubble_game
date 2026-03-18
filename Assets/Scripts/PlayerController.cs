@@ -1,0 +1,101 @@
+using UnityEngine;
+
+[RequireComponent(typeof(Rigidbody))]
+public class PlayerController : MonoBehaviour
+{
+    [Header("Movement")]
+    public float moveSpeed = 6f;
+    public float jumpForce = 7f;
+
+    [Header("Ground Check")]
+    public Transform groundCheck;
+    public float groundCheckRadius = 0.2f;
+    public LayerMask groundLayer;
+
+    private Rigidbody rb;
+    private bool isGrounded;
+    private float moveInput;
+
+    private bool isInBubble = false;
+    private Transform currentBubble;
+    private float bubbleCooldown = 0f;
+
+    private void Awake()
+    {
+        rb = GetComponent<Rigidbody>();
+    }
+
+    private void Update()
+    {
+        if (bubbleCooldown > 0f) bubbleCooldown -= Time.deltaTime;
+        
+        moveInput = MobileInput.Horizontal;
+
+        if (MobileInput.JumpPressed && (isGrounded || isInBubble))
+        {
+            if (isInBubble)
+            {
+                ExitBubble();
+                bubbleCooldown = 0.5f; // Prevent immediately re-entering the same bubble
+            }
+            Jump();
+            MobileInput.ConsumeJump();
+        }
+    }
+
+    private void FixedUpdate()
+    {
+        CheckGround();
+
+        if (isInBubble)
+        {
+            if (currentBubble != null)
+                transform.position = currentBubble.position;
+            
+            rb.linearVelocity = Vector3.zero;
+            return;
+        }
+
+        Vector3 velocity = rb.linearVelocity;
+        velocity.x = moveInput * moveSpeed;
+        rb.linearVelocity = velocity;
+    }
+
+    private void Jump()
+    {
+        Vector3 velocity = rb.linearVelocity;
+        velocity.y = 0f;
+        rb.linearVelocity = velocity;
+
+        rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
+    }
+
+    private void CheckGround()
+    {
+        isGrounded = Physics.CheckSphere(groundCheck.position, groundCheckRadius, groundLayer);
+    }
+
+    public bool IsGrounded()
+    {
+        return isGrounded;
+    }
+
+    public void EnterBubble(Transform bubbleCenter)
+    {
+        if (bubbleCooldown > 0f || isInBubble) return;
+
+        isInBubble = true;
+        currentBubble = bubbleCenter;
+        
+        rb.useGravity = false;
+        rb.linearVelocity = Vector3.zero;
+        transform.position = bubbleCenter.position;
+    }
+
+    public void ExitBubble()
+    {
+        isInBubble = false;
+        currentBubble = null;
+        rb.useGravity = true;
+    }
+}
