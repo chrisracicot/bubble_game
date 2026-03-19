@@ -51,9 +51,14 @@ public class PlayerController : MonoBehaviour
     {
         if (bubbleCooldown > 0f) bubbleCooldown -= Time.deltaTime;
         
-        moveInput = MobileInput.Horizontal;
+        // Use keyboard horizontal if it's active, otherwise use mobile input
+        float keyboardHorizontal = Input.GetAxisRaw("Horizontal");
+        moveInput = Mathf.Abs(keyboardHorizontal) > 0.1f ? keyboardHorizontal : MobileInput.Horizontal;
 
-        if (MobileInput.JumpPressed && (isGrounded || isInBubble))
+        // Check for jump from either mobile button or Space bar
+        bool jumpRequested = MobileInput.JumpPressed || Input.GetKeyDown(KeyCode.Space);
+
+        if (jumpRequested && (isGrounded || isInBubble))
         {
             if (isInBubble)
             {
