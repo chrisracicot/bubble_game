@@ -23,6 +23,7 @@ public class PlayerController : MonoBehaviour
     private void Awake()
     {
         rb = GetComponent<Rigidbody>();
+        rb.constraints = RigidbodyConstraints.FreezeRotation; // Prevent the manual cube from rolling over!
         
         // Auto-assign groundCheck if it's not set in the inspector
         if (groundCheck == null)

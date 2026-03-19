@@ -55,22 +55,36 @@ public class BubbleSpawner : MonoBehaviour
         float randomHeight = Random.Range(minHeight, maxHeight);
         Vector3 spawnPos = new Vector3(randomX, randomHeight, player.position.z + 20f); // Spawn far ahead
         
-        GameObject bubbleObj = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-        bubbleObj.name = "MovingBubble";
-        bubbleObj.transform.position = spawnPos;
-        bubbleObj.transform.localScale = new Vector3(1.8f, 1.8f, 1.8f);
-        
-        bubbleObj.AddComponent<Bubble>();
-        
-        // Setup Trigger
-        Collider col = bubbleObj.GetComponent<Collider>();
-        if (col != null) col.isTrigger = true;
+        GameObject bubbleObj;
 
-        // Setup material - direct color modification of the default material
-        Renderer rend = bubbleObj.GetComponent<Renderer>();
-        if (rend != null)
+        if (bubblePrefab != null)
         {
-            rend.material.color = new Color(0f, 1f, 1f, 0.8f); // High-visibility Cyan
+            bubbleObj = Instantiate(bubblePrefab, spawnPos, Quaternion.identity);
+            bubbleObj.name = "MovingBubble (Prefab)";
+        }
+        else
+        {
+            bubbleObj = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            bubbleObj.name = "MovingBubble (Primitive)";
+            bubbleObj.transform.position = spawnPos;
+            bubbleObj.transform.localScale = new Vector3(1.8f, 1.8f, 1.8f);
+            
+            // Setup Trigger for primitive
+            Collider col = bubbleObj.GetComponent<Collider>();
+            if (col != null) col.isTrigger = true;
+
+            // Setup material for primitive
+            Renderer rend = bubbleObj.GetComponent<Renderer>();
+            if (rend != null)
+            {
+                rend.material.color = new Color(0f, 1f, 1f, 0.8f); // High-visibility Cyan
+            }
+        }
+        
+        // Ensure the Bubble script is attached
+        if (bubbleObj.GetComponent<Bubble>() == null)
+        {
+            bubbleObj.AddComponent<Bubble>();
         }
 
         Debug.Log($"[Spawner] Spawned bubble at {spawnPos}");
