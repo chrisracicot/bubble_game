@@ -6,38 +6,35 @@ public class BubbleSpawner : MonoBehaviour
     public float spawnInterval = 2f;
     public float minHeight = 1f;
     public float maxHeight = 5f;
-    public float spawnDistanceAhead = 15f;
+    public float spawnDistanceAhead = 50f; // Fixed distance from platform center
 
     private float timer;
-    private Transform player;
+    private Transform platform;
 
     private void Start()
     {
         timer = spawnInterval;
-        FindPlayer();
+        FindPlatform();
     }
 
-    private void FindPlayer()
+    private void FindPlatform()
     {
-        GameObject playerObj = GameObject.Find("Player");
-        if (playerObj == null) 
+        // Try to find the platform/floor
+        GameObject floor = GameObject.Find("Floor");
+        if (floor == null) floor = GameObject.Find("Platform");
+        
+        if (floor != null)
         {
-            PlayerController pc = FindFirstObjectByType<PlayerController>();
-            if (pc != null) playerObj = pc.gameObject;
-        }
-
-        if (playerObj != null) 
-        {
-            player = playerObj.transform;
-            Debug.Log("[BubbleSpawner] Found player: " + playerObj.name);
+            platform = floor.transform;
+            Debug.Log("[BubbleSpawner] Found platform: " + floor.name);
         }
     }
 
     private void Update()
     {
-        if (player == null) 
+        if (platform == null) 
         {
-            FindPlayer();
+            FindPlatform();
             return;
         }
 
@@ -53,7 +50,9 @@ public class BubbleSpawner : MonoBehaviour
     {
         float randomX = Random.Range(-4f, 4f); // Spread across lane
         float randomHeight = Random.Range(minHeight, maxHeight);
-        Vector3 spawnPos = new Vector3(randomX, randomHeight, player.position.z + 20f); // Spawn far ahead
+        
+        // Spawn relative to the platform's Z position
+        Vector3 spawnPos = new Vector3(randomX, randomHeight, platform.position.z + spawnDistanceAhead);
         
         GameObject bubbleObj;
 
@@ -87,6 +86,6 @@ public class BubbleSpawner : MonoBehaviour
             bubbleObj.AddComponent<Bubble>();
         }
 
-        Debug.Log($"[Spawner] Spawned bubble at {spawnPos}");
+        Debug.Log($"[Spawner] Spawned bubble relative to platform at {spawnPos}");
     }
 }

@@ -6,6 +6,7 @@ public class PlayerController : MonoBehaviour
     [Header("Movement")]
     public float moveSpeed = 6f;
     public float jumpForce = 7f;
+    public float jumpForwardForce = 5f;
 
     [Header("Ground Check")]
     public Transform groundCheck;
@@ -52,30 +53,38 @@ public class PlayerController : MonoBehaviour
         if (bubbleCooldown > 0f) bubbleCooldown -= Time.deltaTime;
         
         bool jumpRequested = MobileInput.JumpPressed;
+        bool jumpForwardRequested = MobileInput.JumpForwardPressed;
         float currentHorizontal = MobileInput.Horizontal;
 
-#if ENABLE_LEGACY_INPUT_MANAGER
-        // Use keyboard horizontal if it's active, otherwise use mobile input
+        // Use keyboard inputs if Legacy Input is enabled
         try 
         {
             float keyboardHorizontal = Input.GetAxisRaw("Horizontal");
             if (Mathf.Abs(keyboardHorizontal) > 0.1f) currentHorizontal = keyboardHorizontal;
 
             if (Input.GetKeyDown(KeyCode.Space)) jumpRequested = true;
+            if (Input.GetKeyDown(KeyCode.UpArrow)) jumpForwardRequested = true;
         } 
-        catch { /* Fallback to mobile only if API fails */ }
-#endif
+        catch 
+        { 
+            // Legacy Input Manager disabled
+        }
 
         moveInput = currentHorizontal;
 
-        if (jumpRequested && (isGrounded || isInBubble))
+        if ((jumpRequested || jumpForwardRequested) && (isGrounded || isInBubble))
         {
             if (isInBubble)
             {
                 ExitBubble();
-                bubbleCooldown = 0.5f; // Prevent immediately re-entering the same bubble
+                bubbleCooldown = 0.5f; 
             }
-            Jump();
+            
+            if (jumpForwardRequested)
+                JumpForward();
+            else
+                Jump();
+
             MobileInput.ConsumeJump();
         }
     }
@@ -105,6 +114,18 @@ public class PlayerController : MonoBehaviour
         rb.linearVelocity = velocity;
 
         rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
+    }
+
+    private void JumpForward()
+    {
+        Vector3 velocity = rb.linearVelocity;
+        velocity.y = 0f;
+        rb.linearVelocity = velocity;
+
+        // Apply upward force
+        rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
+        // Apply forward force (Positive Z)
+        rb.AddForce(Vector3.forward * jumpForwardForce, ForceMode.Impulse);
     }
 
     private void CheckGround()
