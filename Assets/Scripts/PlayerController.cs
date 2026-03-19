@@ -23,6 +23,27 @@ public class PlayerController : MonoBehaviour
     private void Awake()
     {
         rb = GetComponent<Rigidbody>();
+        
+        // Auto-assign groundCheck if it's not set in the inspector
+        if (groundCheck == null)
+        {
+            groundCheck = transform.Find("GroundCheck");
+            if (groundCheck == null)
+            {
+                // Create one if it doesn't exist
+                GameObject gc = new GameObject("GroundCheck");
+                gc.transform.SetParent(this.transform);
+                gc.transform.localPosition = new Vector3(0f, -0.6f, 0f);
+                groundCheck = gc.transform;
+            }
+        }
+
+        // Auto-assign layer if not set
+        if (groundLayer == 0)
+        {
+            groundLayer = LayerMask.GetMask("Default");
+            Debug.Log("[PlayerController] Auto-assigned groundLayer to 'Default'");
+        }
     }
 
     private void Update()

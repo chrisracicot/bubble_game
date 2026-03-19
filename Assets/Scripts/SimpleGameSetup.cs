@@ -10,109 +10,11 @@ public class SimpleGameSetup : MonoBehaviour
 
     private void Start()
     {
-        Debug.Log("SimpleGameSetup: Starting CreateScene...");
-        CreateScene();
-    }
-
-    private void CreateScene()
-    {
-        CreateLight();
-        GameObject floor = CreateFloor();
-        GameObject player = CreatePlayer();
-        CreateCamera(player.transform);
+        Debug.Log("[SimpleGameSetup] Initializing UI...");
         CreateUI();
-        CreateBubbleSpawner(player.transform);
+        Debug.Log("[SimpleGameSetup] UI Initialization complete.");
     }
 
-    private void CreateLight()
-    {
-        if (FindFirstObjectByType<Light>() != null) return;
-
-        GameObject lightObj = new GameObject("Directional Light");
-        Light lightComp = lightObj.AddComponent<Light>();
-        lightComp.type = LightType.Directional;
-        lightObj.transform.rotation = Quaternion.Euler(50f, -30f, 0f);
-    }
-
-    private GameObject CreateFloor()
-    {
-        GameObject floor = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        floor.name = "Floor";
-        floor.transform.position = new Vector3(0f, -0.5f, 0f);
-        floor.transform.localScale = new Vector3(20f, 1f, 20f);
-        floor.layer = LayerMask.NameToLayer("Default");
-
-        if (floorMaterial != null)
-        {
-            floor.GetComponent<Renderer>().material = floorMaterial;
-        }
-
-        return floor;
-    }
-
-    private GameObject CreatePlayer()
-    {
-        GameObject player = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        player.name = "Player";
-        player.transform.position = new Vector3(0f, 1f, 0f);
-        player.transform.localScale = new Vector3(1f, 1f, 1f);
-
-        if (playerMaterial != null)
-        {
-            player.GetComponent<Renderer>().material = playerMaterial;
-        }
-
-        Rigidbody rb = player.AddComponent<Rigidbody>();
-        rb.constraints = RigidbodyConstraints.FreezeRotation;
-
-        PlayerController controller = player.AddComponent<PlayerController>();
-        controller.moveSpeed = 6f;
-        controller.jumpForce = 7f;
-        controller.groundLayer = LayerMask.GetMask("Default");
-
-        GameObject groundCheck = new GameObject("GroundCheck");
-        groundCheck.transform.SetParent(player.transform);
-        groundCheck.transform.localPosition = new Vector3(0f, -0.6f, 0f);
-
-        controller.groundCheck = groundCheck.transform;
-        controller.groundCheckRadius = 0.25f;
-
-        return player;
-    }
-
-    private void CreateCamera(Transform target)
-    {
-        Camera cam = Camera.main;
-
-        if (cam == null)
-        {
-            GameObject cameraObj = new GameObject("Main Camera");
-            cam = cameraObj.AddComponent<Camera>();
-            cameraObj.tag = "MainCamera";
-        }
-
-        cam.transform.position = new Vector3(0f, 6f, -8f);
-        cam.transform.LookAt(target.position);
-
-        FollowCamera follow = cam.gameObject.GetComponent<FollowCamera>();
-        if (follow == null)
-        {
-            follow = cam.gameObject.AddComponent<FollowCamera>();
-        }
-
-        follow.target = target;
-        follow.offset = new Vector3(0f, 6f, -8f);
-        follow.smoothSpeed = 8f;
-    }
-
-    private void CreateBubbleSpawner(Transform player)
-    {
-        GameObject spawnerObj = new GameObject("BubbleSpawner");
-        BubbleSpawner spawner = spawnerObj.AddComponent<BubbleSpawner>();
-        spawner.spawnInterval = 2f;
-        spawner.minHeight = 1.0f;
-        spawner.maxHeight = 4.0f;
-    }
 
     private void CreateUI()
     {
@@ -149,6 +51,8 @@ public class SimpleGameSetup : MonoBehaviour
         CreateMoveButton(canvas.transform, "LeftButton", new Vector2(140f, 140f), new Vector2(120f, 140f), "<", -1f);
         CreateMoveButton(canvas.transform, "RightButton", new Vector2(140f, 140f), new Vector2(300f, 140f), ">", 1f);
         CreateJumpButton(canvas.transform, "JumpButton", new Vector2(180f, 180f), new Vector2(-160f, 160f), "JUMP");
+        
+        Debug.Log("[SimpleGameSetup] UI setup complete.");
     }
 
     private void CreateScoreUI(Transform parent)

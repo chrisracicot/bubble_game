@@ -20,7 +20,17 @@ public class BubbleSpawner : MonoBehaviour
     private void FindPlayer()
     {
         GameObject playerObj = GameObject.Find("Player");
-        if (playerObj != null) player = playerObj.transform;
+        if (playerObj == null) 
+        {
+            PlayerController pc = FindFirstObjectByType<PlayerController>();
+            if (pc != null) playerObj = pc.gameObject;
+        }
+
+        if (playerObj != null) 
+        {
+            player = playerObj.transform;
+            Debug.Log("[BubbleSpawner] Found player: " + playerObj.name);
+        }
     }
 
     private void Update()
