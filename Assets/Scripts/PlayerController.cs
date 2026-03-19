@@ -4,9 +4,12 @@ using UnityEngine;
 public class PlayerController : MonoBehaviour
 {
     [Header("Movement")]
-    public float moveSpeed = 6f;
-    public float jumpForce = 7f;
-    public float jumpForwardForce = 5f;
+    public float moveSpeed = 6f; // Kept for keyboard override steering
+    
+    [Header("Trajectory Jump Settings")]
+    public float baseJumpForce = 7f;
+    public float baseForwardForce = 5f;
+    public float maxSideForce = 5f;
 
     [Header("Ground Check")]
     public Transform groundCheck;
@@ -15,7 +18,7 @@ public class PlayerController : MonoBehaviour
 
     private Rigidbody rb;
     private bool isGrounded;
-    private float moveInput;
+    private float moveInput; 
 
     private bool isInBubble = false;
     private Transform currentBubble;
@@ -24,15 +27,13 @@ public class PlayerController : MonoBehaviour
     private void Awake()
     {
         rb = GetComponent<Rigidbody>();
-        rb.constraints = RigidbodyConstraints.FreezeRotation; // Prevent the manual cube from rolling over!
+        rb.constraints = RigidbodyConstraints.FreezeRotation; 
         
-        // Auto-assign groundCheck if it's not set in the inspector
         if (groundCheck == null)
         {
             groundCheck = transform.Find("GroundCheck");
             if (groundCheck == null)
             {
-                // Create one if it doesn't exist
                 GameObject gc = new GameObject("GroundCheck");
                 gc.transform.SetParent(this.transform);
                 gc.transform.localPosition = new Vector3(0f, -0.6f, 0f);
@@ -40,7 +41,6 @@ public class PlayerController : MonoBehaviour
             }
         }
 
-        // Auto-assign layer if not set
         if (groundLayer == 0)
         {
             groundLayer = LayerMask.GetMask("Default");
@@ -52,27 +52,41 @@ public class PlayerController : MonoBehaviour
     {
         if (bubbleCooldown > 0f) bubbleCooldown -= Time.deltaTime;
         
-        bool jumpRequested = MobileInput.JumpPressed;
-        bool jumpForwardRequested = MobileInput.JumpForwardPressed;
-        float currentHorizontal = MobileInput.Horizontal;
+        bool wantsJump = false;
+        Vector2 jumpInput = Vector2.zero;
 
-        // Use keyboard inputs if Legacy Input is enabled
-        try 
+        // Check Control Panel Input
+        if (MobileInput.TrajectoryJumpRequested)
         {
-            float keyboardHorizontal = Input.GetAxisRaw("Horizontal");
-            if (Mathf.Abs(keyboardHorizontal) > 0.1f) currentHorizontal = keyboardHorizontal;
-
-            if (Input.GetKeyDown(KeyCode.Space)) jumpRequested = true;
-            if (Input.GetKeyDown(KeyCode.UpArrow)) jumpForwardRequested = true;
-        } 
-        catch 
-        { 
-            // Legacy Input Manager disabled
+            wantsJump = true;
+            jumpInput = MobileInput.TrajectoryInput;
+            MobileInput.ConsumeTrajectoryJump();
         }
 
-        moveInput = currentHorizontal;
+        // Keyboard Fallback for testing on PC
+        try 
+        {
+            moveInput = Input.GetAxisRaw("Horizontal"); 
+            
+            if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.UpArrow))
+            {
+                wantsJump = true;
+                jumpInput = Vector2.zero; // default center jump
+                
+                if (Input.GetKey(KeyCode.LeftArrow)) jumpInput.x = -1f;
+                if (Input.GetKey(KeyCode.RightArrow)) jumpInput.x = 1f;
+                
+                // UpArrow = center/forward jump
+                // Space = higher jump
+                // DownArrow = longer/lower jump
+                if (Input.GetKey(KeyCode.Space)) jumpInput.y = 1f; 
+                else if (Input.GetKey(KeyCode.DownArrow)) jumpInput.y = -1f;
+                else jumpInput.y = 0f;
+            }
+        } 
+        catch { }
 
-        if ((jumpRequested || jumpForwardRequested) && (isGrounded || isInBubble))
+        if (wantsJump && (isGrounded || isInBubble))
         {
             if (isInBubble)
             {
@@ -80,12 +94,7 @@ public class PlayerController : MonoBehaviour
                 bubbleCooldown = 0.5f; 
             }
             
-            if (jumpForwardRequested)
-                JumpForward();
-            else
-                Jump();
-
-            MobileInput.ConsumeJump();
+            ExecuteTrajectoryJump(jumpInput);
         }
     }
 
@@ -103,29 +112,58 @@ public class PlayerController : MonoBehaviour
         }
 
         Vector3 velocity = rb.linearVelocity;
-        velocity.x = moveInput * moveSpeed;
+        
+        // Handle horizontal movement/friction
+        if (isGrounded && rb.linearVelocity.y <= 0.1f) // Only apply friction if not actively jumping upward
+        {
+            if (Mathf.Abs(moveInput) > 0.01f)
+            {
+                // Keyboard steering overrides friction
+                velocity.x = moveInput * moveSpeed;
+            }
+            else
+            {
+                // Ground friction to prevent sliding forever after landing a side-jump
+                velocity.x = Mathf.MoveTowards(velocity.x, 0f, 50f * Time.fixedDeltaTime);
+            }
+        }
+        else
+        {
+            // Air steering via keyboard
+            if (Mathf.Abs(moveInput) > 0.01f)
+            {
+                velocity.x = moveInput * moveSpeed;
+            }
+            // If no keyboard input, retain momentum (don't force velocity.x to 0)
+        }
+
         rb.linearVelocity = velocity;
     }
 
-    private void Jump()
+    private void ExecuteTrajectoryJump(Vector2 input)
     {
+        // Reset velocities for a consistent jump arc
         Vector3 velocity = rb.linearVelocity;
-        velocity.y = 0f;
+        velocity.y = 0f; 
+        velocity.x = 0f; 
         rb.linearVelocity = velocity;
 
-        rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
-    }
-
-    private void JumpForward()
-    {
-        Vector3 velocity = rb.linearVelocity;
-        velocity.y = 0f;
-        rb.linearVelocity = velocity;
-
-        // Apply upward force
-        rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
-        // Apply forward force (Positive Z)
-        rb.AddForce(Vector3.forward * jumpForwardForce, ForceMode.Impulse);
+        // X determines side force (-1 to 1)
+        float lateralForce = input.x * maxSideForce;
+        
+        // Y determines balance between Up and Forward (-1 to 1)
+        float normalizedY = (input.y + 1f) / 2f; // Converts -1..1 to 0..1
+        
+        // normalizedY = 1 (Top): Max Up, Min Forward
+        // normalizedY = 0.5 (Center): Base Up, Base Forward
+        // normalizedY = 0 (Bottom): Min Up, Max Forward
+        float upForce = Mathf.Lerp(baseJumpForce * 0.5f, baseJumpForce * 1.5f, normalizedY);
+        float fwdForce = Mathf.Lerp(baseForwardForce * 1.5f, baseForwardForce * 0.5f, normalizedY);
+        
+        Vector3 force = new Vector3(lateralForce, upForce, fwdForce);
+        rb.AddForce(force, ForceMode.Impulse);
+        
+        Debug.Log($"[PlayerController] Jumped with Forces: Lateral={lateralForce:F1}, Up={upForce:F1}, Fwd={fwdForce:F1}");
     }
 
     private void CheckGround()
